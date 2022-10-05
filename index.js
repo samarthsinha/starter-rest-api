@@ -17,7 +17,6 @@ app.use(function (req, res, next) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type, Accept');
   res.setHeader('Access-Control-Allow-Credentials', true);
-
   next();
 })
 app.use(express.json())
@@ -114,7 +113,6 @@ app.get('/:col', async (req, res) => {
 })
 
 app.post('/appointments', async(req,res)=>{
-    console.log(req.body);
     var telegramBody = {
         "chat_id":`${process.env.TG_CHANNEL_CHAT_ID}`,
         "text":`Hi ${req.body.patient_name} (${req.body.mobile} - ${req.body.email}) has requested an appointment on
@@ -124,10 +122,8 @@ app.post('/appointments', async(req,res)=>{
     var tg_send_msg_url=`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`;
     try{
         var resp = await post(tg_send_msg_url,telegramBody);
-        console.log(resp);
-        res.json(resp).end()
+        res.json({"status":`${JSON.parse(resp).ok ? "200":"400"}`}).end()
     }catch(err){
-         console.log(err);
          res.status(500).json({"status":"500", "message":"Appointment couldn't be forwarded."}).end();
     }
 })
