@@ -7,6 +7,19 @@ const app = express()
 const db = require('cyclic-dynamodb')
 const https = require('https');
 
+app.use(function (req, res, next) {
+  var domains = process.env.CORS_DOMAIN
+  var allowedDomains = domains.split(',');
+  var origin = req.headers.origin;
+  if(allowedDomains.indexOf(origin) > -1){
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type, Accept');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+
+  next();
+})
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -125,7 +138,7 @@ app.use('*', (req, res) => {
 })
 
 // Start the server
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 4000
 app.listen(port, () => {
   console.log(`index.js listening on ${port}`)
 })
