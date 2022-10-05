@@ -1,9 +1,49 @@
+'use strict';
+process.on('uncaughtException', function (err) {
+    console.log('Caught exception: ', err);
+});
 const express = require('express')
 const app = express()
 const db = require('cyclic-dynamodb')
+const https = require('https');
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+async function post(url, data) {
+  const dataString = JSON.stringify(data)
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': dataString.length,
+    },
+    timeout: 1000, // in ms
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, options, (res) => {
+      if (res.statusCode < 200 || res.statusCode > 299) {
+        return reject(new Error(`HTTP status code ${res.statusCode}`))
+      }
+      const body = []
+      res.on('data', (chunk) => body.push(chunk))
+      res.on('end', () => {
+        const resString = Buffer.concat(body).toString()
+        resolve(resString)
+      })
+    })
+    req.on('error', (err) => {
+      reject(err)
+    })
+    req.on('timeout', () => {
+      req.destroy()
+      reject(new Error('Request time out'))
+    })
+    req.write(dataString)
+    req.end()
+  })
+}
 
 // #############################################################################
 // This configures static hosting for files in /public that have the extensions
@@ -58,6 +98,25 @@ app.get('/:col', async (req, res) => {
   const items = await db.collection(col).list()
   console.log(JSON.stringify(items, null, 2))
   res.json(items).end()
+})
+
+app.post('/appointments', async(req,res)=>{
+    console.log(req.body);
+    var telegramBody = {
+        "chat_id":`${process.env.TG_CHANNEL_CHAT_ID}`,
+        "text":`Hi ${req.body.patient_name} (${req.body.mobile} - ${req.body.email}) has requested an appointment on
+        ${req.body.preferred_date} ${req.body.preferred_time_slot} for ${req.body.appointment_for}.`,
+        "parse_mode":"Markdown"
+    }
+    var tg_send_msg_url=`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`;
+    try{
+        var resp = await post(tg_send_msg_url,telegramBody);
+        console.log(resp);
+        res.json(resp).end()
+    }catch(err){
+         console.log(err);
+         res.status(500).json({"status":"500", "message":"Appointment couldn't be forwarded."}).end();
+    }
 })
 
 // Catch all handler for all other request.
